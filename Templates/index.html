@@ -70,12 +70,15 @@
   </table>
 
   <!------------- Export To CSV Button ------------------->
-  <div class="d-flex justify-content-center">
+<div class="container">
     <button type="button" class="btn btn-secondary" onclick="downloadCSVFile()">
         Export to CSV
     </button>
-  </div>
-  
+    
+    <button type="button" class="btn btn-secondary" style="float: right;" onclick="predict()">
+        Predict
+    </button>
+</div>
 
 <script type="text/javascript">
 
@@ -113,7 +116,7 @@
     }
 
     // Add Row Function that will also predict big mart.
-    async function addRow(htmlobj) {
+    function addRow(htmlobj) {
 
         if (htmlobj.name == 'Item_Weight')  Item_Weight = htmlobj.value;
         if (htmlobj.name == 'Item_Fat_Content') Item_Fat_Content = htmlobj.value;
@@ -126,7 +129,9 @@
         if (htmlobj.name == 'Outlet_Establishment_Year') Outlet_Establishment_Year = htmlobj.value;
 
         // console.log(Item_Weight, Item_Fat_Content, Item_Visibility, Item_Type, Item_MRP, Outlet_Size, Outlet_Location_Type, Outlet_Type, Outlet_Establishment_Year)
+    }
 
+    async function predict(){
         // Check if all columns are filled or not
         if (Item_Weight && Item_Fat_Content && Item_Visibility && Item_Type && Item_MRP && Outlet_Size && Outlet_Location_Type && Outlet_Type && Outlet_Establishment_Year){
 
@@ -201,7 +206,10 @@
 
             // Reinitialize the cell with value 0
             Item_Weight = Item_Fat_Content = Item_Visibility = Item_Type = Item_MRP = Outlet_Size = Outlet_Location_Type = Outlet_Type = Outlet_Establishment_Year = 0
-        }    
+        } 
+        else{
+            alert("Please fillup all the fields");
+        }
     }
     </script>
   {% endblock content %}
