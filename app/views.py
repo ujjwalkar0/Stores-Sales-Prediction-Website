@@ -43,10 +43,13 @@ features = {
 
 def homepage(request, *args, **kwargs):
     if request.method == 'GET':
+        hostname = f"http://{request.get_host()}/"
+        if request.is_secure():
+            hostname = f"https://{request.get_host()}/"
         context = {
             "response": "Hello World!!!", 
             "features": features,
-            "hostname": f"http://{request.get_host()}/"
+            "hostname": hostname
         }
         return render(request, 'index.html', context)
     if request.method == 'POST':
