@@ -1,0 +1,207 @@
+{% extends 'base.html' %}
+{% load remove_ %}
+
+{% block content %} 
+<style>
+    .input:focus{
+        outline: none;
+    }
+    .input{
+        margin: 0px; 
+        padding:0px; 
+        width: 100px;
+        border: 0px;
+    }
+    .option{
+        outline: none;
+        background-color: none;
+    }
+    .output{
+        width: 110px;
+        border: 0px;
+    }
+    .output:focus{
+        outline: none;
+    }
+</style>
+
+<!-- Create Sheet Table -->
+<table class="table table-bordered" id="predictor">
+    <!--- Table Header ---->
+    <thead class="thead-dark">
+      <tr>
+        <th scope="col">#</th>
+        <!---- Write features names from backend in Table Header ---->
+        {% for i,j in features.items %}            
+            <th scope="col" style="text-align: center;" class="align-middle">{{i|remove_}}</th>
+        {% endfor %}
+        <!----/ Write features names from backend in Table Header ---->
+        </tr>
+    </thead>
+    <!---/ Table Header ---->
+    <tbody>
+      <tr>
+        <td><b>1</b></td>
+        {% for i,j in features.items %}   
+            <!--- Input Box for Numeric Features ---->  
+            {% if j.type == 'numeric' %}         
+                <td>
+                    <input type="number" name = {{i}} class="input" onchange="addRow(this)">
+                </td>
+            <!--- Select Box for Catagorical Features ---->  
+            {% elif j.type == 'select' %}         
+                <td>
+                    <select name = {{i}} class="input" onchange="addRow(this)">
+                        <option class="option" value="">Select one...</option>
+                        {% for options in j.options %}
+                            <option class="option" value={{options}}>{{options|remove_}}</option>
+                        {% endfor %}
+                    </select> 
+                </td>
+            <!-- Disabled Input Box for Output (Price of Big Mart)--->
+            {% elif j.type == 'output' %}         
+                <td>
+                    <input class="output" id="output1" disabled>
+                </td>
+            {% endif %}
+        {% endfor %}
+      </tr>
+    </tbody>
+  </table>
+
+  <!------------- Export To CSV Button ------------------->
+  <div class="d-flex justify-content-center">
+    <button type="button" class="btn btn-secondary" onclick="downloadCSVFile()">
+        Export to CSV
+    </button>
+  </div>
+  
+
+<script type="text/javascript">
+
+    const url = "{{ hostname }}"
+    let i = 1;
+    
+    let Item_Weight = Item_Fat_Content = Item_Visibility = Item_Type = Item_MRP = Outlet_Size = Outlet_Location_Type = Outlet_Type = Outlet_Establishment_Year = 0
+
+    // Variable to store the final csv data
+    var csv_data = ['Item_Weight, Item_Fat_Content, Item_Visibility, Item_Type, Item_MRP, Outlet_Size, Outlet_Location_Type, Outlet_Type, Outlet_Establishment_Year, Item_Outlet_Sales'];
+
+    function downloadCSVFile() {
+        csv_data = csv_data.join('\n');
+
+        // Create CSV file object and feed our
+        // csv_data into it
+        CSVFile = new Blob([csv_data], { type: "text/csv" });
+
+        // Create to temporary link to initiate
+        // download process
+        var temp_link = document.createElement('a');
+
+        // Download csv file
+        temp_link.download = "Price Prediction.csv";
+        var url = window.URL.createObjectURL(CSVFile);
+        temp_link.href = url;
+
+        // This link should not be displayed
+        temp_link.style.display = "none";
+        document.body.appendChild(temp_link);
+
+        // Automatically click the link to trigger download
+        temp_link.click();
+        document.body.removeChild(temp_link);
+    }
+
+    // Add Row Function that will also predict big mart.
+    async function addRow(htmlobj) {
+
+        if (htmlobj.name == 'Item_Weight')  Item_Weight = htmlobj.value;
+        if (htmlobj.name == 'Item_Fat_Content') Item_Fat_Content = htmlobj.value;
+        if (htmlobj.name == 'Item_Visibility') Item_Visibility = htmlobj.value;
+        if (htmlobj.name == 'Item_Type') Item_Type = htmlobj.value;
+        if (htmlobj.name == 'Item_MRP') Item_MRP = htmlobj.value;
+        if (htmlobj.name == 'Outlet_Size') Outlet_Size = htmlobj.value;
+        if (htmlobj.name == 'Outlet_Location_Type') Outlet_Location_Type = htmlobj.value;
+        if (htmlobj.name == 'Outlet_Type') Outlet_Type = htmlobj.value;
+        if (htmlobj.name == 'Outlet_Establishment_Year') Outlet_Establishment_Year = htmlobj.value;
+
+        // console.log(Item_Weight, Item_Fat_Content, Item_Visibility, Item_Type, Item_MRP, Outlet_Size, Outlet_Location_Type, Outlet_Type, Outlet_Establishment_Year)
+
+        // Check if all columns are filled or not
+        if (Item_Weight && Item_Fat_Content && Item_Visibility && Item_Type && Item_MRP && Outlet_Size && Outlet_Location_Type && Outlet_Type && Outlet_Establishment_Year){
+
+            // Send column's data to backend server
+            const response = await fetch(url,{
+                method:"POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-CSRFToken": "{{ csrf_token }}"
+                },
+                body:JSON.stringify({
+                    i,
+                    Item_Weight,
+                    Item_Fat_Content,
+                    Item_Visibility,
+                    Item_Type,
+                    Item_MRP,
+                    Outlet_Size,
+                    Outlet_Location_Type,
+                    Outlet_Type,
+                    Outlet_Establishment_Year
+                })
+            })
+
+            // Got predictions as Response
+            const content = await response.json()
+            console.log(content.predictions)
+
+            // Write predictions on the table
+            document.getElementById(`output${content.predictions.id}`).value = content.predictions.value;
+
+            // Write predictions on the csv_data array to export data to csv purposes.
+            csv_data.push([Item_Weight, Item_Fat_Content, Item_Visibility, Item_Type, Item_MRP, Outlet_Size, Outlet_Location_Type, Outlet_Type, Outlet_Establishment_Year, content.predictions.value].join(","))
+
+            i++;
+
+            // Add new Row to table
+            const predictor = document.getElementById("predictor")
+            const row = predictor.insertRow(-1);
+
+            id_cell = row.insertCell(0);
+            id_cell.innerHTML = `<b>${i}</b>`;
+
+            var cell_no = 1
+
+            for(var key in content.features){                
+                var value=content.features[key];
+
+                var cell = row.insertCell(cell_no);
+
+                if (value['type']=='numeric'){
+                    cell.innerHTML = `<input class="input" type="number" onchange="addRow(this)" name = ${key}>` 
+                }
+                else if (value['type']=='select'){
+                    cell.innerHTML = `
+                    <select name = ${key} class="input"  onchange="addRow(this)">
+                        <option class="option" value="">Select one...</option>
+                        ${value['options'].map((options)=> `
+                            <option class="option" value=${options}>${options.replaceAll('_', ' ')}</option>
+                        `)}
+                    </select> 
+                    `
+                }
+                else if (value['type']=='output'){
+                    cell.innerHTML = `
+                    <input id="output${i}" class="output" disabled>
+                    `
+                }
+                console.log(value)
+                cell_no++;
+            }
+
+            // Reinitialize the cell with value 0
+            Item_Weight = Item_Fat_Content = Item_Visibility = Item_Type = Item_MRP = Outlet_Size = Outlet_Location_Type = Outlet_Type = Outlet_Establishment_Year = 0
+        }    
+    }
+    </script>
+  {% endblock content %}
